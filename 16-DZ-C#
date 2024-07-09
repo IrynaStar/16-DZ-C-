@@ -1,0 +1,81 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+
+class Program
+{
+    static void Main()
+    {
+        // Путь к каталогу, который нужно проанализировать
+        string directoryPath = "D:\\C#\\"; 
+
+        // Проверяем, существует ли указанный каталог
+        if (!Directory.Exists(directoryPath))
+        {
+            Console.WriteLine("Каталог не существует или доступ к нему запрещен.");
+            return;
+        }
+
+        Dictionary<string, (long Size, int Count)> extensionData = new Dictionary<string, (long, int)>();
+
+        try
+        {
+            // Получаем все файлы в указанном каталоге и его подкаталогах
+            string[] files = Directory.GetFiles(directoryPath, "*", SearchOption.AllDirectories);
+
+            foreach (string file in files)
+            {
+                // Получаем расширение файла (без точки)
+                string extension = Path.GetExtension(file)?.TrimStart('.').ToLower();
+
+                if (!string.IsNullOrEmpty(extension))
+                {
+                    // Получаем размер файла
+                    long fileSize = new FileInfo(file).Length;
+
+                    // Обновляем данные для данного расширения
+                    if (extensionData.ContainsKey(extension))
+                    {
+                        var data = extensionData[extension];
+                        extensionData[extension] = (data.Size + fileSize, data.Count + 1);
+                    }
+                    else
+                    {
+                        extensionData.Add(extension, (fileSize, 1));
+                    }
+                }
+            }
+
+            // Сортируем данные по убыванию суммарного объема файлов
+            var sortedExtensions = extensionData.OrderByDescending(pair => pair.Value.Size).Take(50).ToList();
+
+            // Вычисляем общий объем всех файлов на диске и общее количество файлов
+            long totalSize = sortedExtensions.Sum(pair => pair.Value.Size);
+            int totalCount = sortedExtensions.Sum(pair => pair.Value.Count);
+
+            // Выводим результаты в формате таблицы
+            Console.WriteLine("{0,-5} {1,-15} {2,-25} {3,-25} {4,-25} {5,-15}",
+                "№", "Расширение", "Общий объем (Байты)", "Количество", "% от общего количества", "% от общего объема");
+            Console.WriteLine(new string('-', 105));
+
+            int position = 1;
+            foreach (var item in sortedExtensions)
+            {
+                double percentageCount = (double)item.Value.Count / totalCount * 100;
+                double percentageSize = (double)item.Value.Size / totalSize * 100;
+
+                Console.WriteLine("{0,-5} {1,-15} {2,-25} {3,-25} {4,-25:F2} {5,-25:F2}",
+                    position++, item.Key, item.Value.Size, item.Value.Count, percentageCount, percentageSize);
+            }
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            Console.WriteLine($"Ошибка доступа: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Произошла ошибка: {ex.Message}");
+        }
+    }
+}
